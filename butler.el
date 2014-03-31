@@ -122,11 +122,14 @@
                  (if (not (gethash 'jobs server))
                      (puthash 'jobs (make-hash-table :test #'equal) server))
                            (deferred:$
-                             (deferred:url-retrieve (concat
-                                                     (if (string= "/" (substring base-url (- (length base-url) 1)))
-                                                         (substring base-url 0 (- (length base-url) 1))
-                                                       base-url)
-                                                     "/api/json?tree=jobs[name,inQueue,color,url,lastBuild[building,duration,estimatedDuration,timestamp,executor[likelyStuck]]]"))
+                             (deferred:url-get
+			       (concat
+				(if (string= "/" (substring base-url (- (length base-url) 1)))
+				    (substring base-url 0 (- (length base-url) 1))
+				  base-url)
+				"/api/json")
+			       '(("tree" . "jobs[name,inQueue,color,url,lastBuild[building,duration,estimatedDuration,timestamp,executor[likelyStuck]]]"))
+			       nil t)
                              (deferred:nextc it
                                (lambda (buf)
                                  (with-current-buffer buf
@@ -226,14 +229,14 @@
            (server (get-server server-name))
            (job (get-job server job-name))
            (url (gethash 'url job))
-           (auth (gethash 'auth server))
-           (url-request-extra-headers `(("Authorization" . ,auth))))
+           (auth (gethash 'auth server)))
       (if (and url auth)
-          (deferred:$
-            (deferred:url-retrieve (concat url "build/"))
-            (deferred:nextc it
-              (lambda (buf)
-                (kill-buffer buf))))))))
+	  (let ((url-request-extra-headers `(("Authorization" . ,auth))))
+	    (deferred:$
+	      (deferred:url-post (concat url "build/"))
+	      (deferred:nextc it
+		(lambda (buf)
+		  (kill-buffer buf)))))))))
 
 
 (defun hide-butler-job ()
